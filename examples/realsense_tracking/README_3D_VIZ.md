@@ -72,7 +72,7 @@ The cv2 window is used for prompt clicks, the 2D overlay, and the button strip.
 ```bash
 conda activate ms
 python examples/realsense_tracking/realsense_tracking_3d.py \
-    --config configs/pipeline/pipeline_test2.yaml \
+    --config configs/realsense/default.yaml \
     --viz-config configs/visualization/pose_3d_demo.yaml
 ```
 
@@ -127,7 +127,7 @@ Package layout (`point2pose/visualization/`):
 - Multi-object: both stages and the metrics show every object; the RGB feed,
   mesh, and keyframe thumbnails follow `object_view.obj_id` (default 0).
 - `show_bbox`/bbox display needs `estimate_init_pose: true` in the pipeline
-  config (already set in `pipeline_test2.yaml`).
+  config (already set in `default.yaml`).
 - Color modes (`rerun.map_color_mode` / `rerun.point_color_mode`):
   `track_id` (default; stable per physical point, dimmed when untracked),
   `frame_id`, `uncertainty`, `object`.

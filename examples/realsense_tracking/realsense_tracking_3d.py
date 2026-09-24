@@ -20,7 +20,7 @@ The cv2 window is only used for prompt clicks and the 2D overlay. Other
 Run from the repo root:
 
     python examples/realsense_tracking/realsense_tracking_3d.py \
-        --config configs/pipeline/pipeline_test2.yaml \
+        --config configs/realsense/default.yaml \
         --viz-config configs/visualization/pose_3d_demo.yaml
 
 Both arguments are optional; without --viz-config the visualizer uses the
@@ -53,7 +53,7 @@ class RealSenseTrackerWith3DViz(RealSensePipelineTracker):
 
     def __init__(
         self,
-        config_path="configs/pipeline/pipeline_test2.yaml",
+        config_path="configs/realsense/default.yaml",
         viz_config_path=None,
     ):
         super().__init__(config_path)
@@ -102,7 +102,7 @@ def main():
     )
     parser.add_argument(
         "--config",
-        default="configs/pipeline/pipeline_test2.yaml",
+        default="configs/realsense/default.yaml",
         help="pipeline config (same as the base demo)",
     )
     parser.add_argument(

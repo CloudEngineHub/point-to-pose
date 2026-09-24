@@ -45,7 +45,7 @@ from point2pose.utils.transform import transform_pts
 REPO = Path(__file__).resolve().parents[2]
 
 
-DEFAULT_CONFIG = REPO / "configs/pipeline/model_tracking.yaml"
+DEFAULT_CONFIG = REPO / "configs/realsense/model_tracking.yaml"
 
 
 def _default_cfg():
@@ -221,11 +221,11 @@ def viz_tracking_diag(mb, model_map, obj, tracker, K, H, W, view_idx, out_path,
 
 def main():
     ap = argparse.ArgumentParser(
-        description="Build & visualize the model-tracking map. Reads configs/pipeline/"
+        description="Build & visualize the model-tracking map. Reads configs/realsense/"
                     "model_tracking.yaml by default; CLI flags override individual params."
     )
     ap.add_argument("--config", default=str(DEFAULT_CONFIG),
-                    help="pipeline YAML to read (default: configs/pipeline/model_tracking.yaml)")
+                    help="pipeline YAML to read (default: configs/realsense/model_tracking.yaml)")
     ap.add_argument("--out", default=str(REPO / "debug/model_based_tracking"))
     ap.add_argument("--res", type=int, default=256, help="square render resolution (mult. of 8)")
     # Overrides: default None means "use the value from the config".

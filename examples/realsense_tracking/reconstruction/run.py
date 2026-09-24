@@ -7,7 +7,7 @@ never share a process/CUDA context.
 
 Run:
     python examples/realsense_tracking/reconstruction/run.py \
-        --tracking-config configs/pipeline/reconstruction_capture.yaml \
+        --tracking-config configs/realsense/reconstruction_capture.yaml \
         --train-config configs/reconstruct/export_test.yaml \
         --name my_capture
 """
@@ -33,7 +33,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--name", required=True,
                     help="export dir name; frames/poses go to debug/<name>/")
-    ap.add_argument("--tracking-config", default=str(REPO / "configs/pipeline/reconstruction_capture.yaml"))
+    ap.add_argument("--tracking-config", default=str(REPO / "configs/realsense/reconstruction_capture.yaml"))
     ap.add_argument("--train-config", default=str(REPO / "configs/reconstruct/export_test.yaml"))
     ap.add_argument("--viewer", action="store_true",
                     help="live viewer during training via the point2pose render-loop pattern")

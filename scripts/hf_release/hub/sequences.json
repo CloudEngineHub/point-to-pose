@@ -1,0 +1,648 @@
+{
+  "name": "YCBMultiTrack",
+  "splits": {
+    "real": {
+      "archive": {
+        "file_name": "YCBMultiTrack-Real.zip",
+        "size_bytes": 9346898170,
+        "num_files": 105027,
+        "sha256": "0cd5b0bc8e194c3dd5673fe585c1cd28ef76e3ed1637e4a0ed0327fcfa3036cb"
+      },
+      "num_sequences": 11,
+      "num_frames": 16314,
+      "sequences": {
+        "005_tomato_soup_can": {
+          "num_frames": 1420,
+          "resolution": [
+            640,
+            480
+          ],
+          "first_frame_id": "000000",
+          "cam_K": [
+            [
+              614.429,
+              0.0,
+              323.473
+            ],
+            [
+              0.0,
+              615.125,
+              239.058
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "objects": [
+            {
+              "name": "005_tomato_soup_can",
+              "frames_out_of_frame": 134,
+              "frames_mask_not_visible": 182
+            }
+          ]
+        },
+        "005_tomato_soup_can_008_pudding_box_easy": {
+          "num_frames": 1181,
+          "resolution": [
+            640,
+            480
+          ],
+          "first_frame_id": "000000",
+          "cam_K": [
+            [
+              614.429,
+              0.0,
+              323.473
+            ],
+            [
+              0.0,
+              615.125,
+              239.058
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "objects": [
+            {
+              "name": "005_tomato_soup_can",
+              "frames_out_of_frame": 0,
+              "frames_mask_not_visible": 126
+            },
+            {
+              "name": "008_pudding_box",
+              "frames_out_of_frame": 0,
+              "frames_mask_not_visible": 87
+            }
+          ]
+        },
+        "005_tomato_soup_can_008_pudding_box_hard": {
+          "num_frames": 1587,
+          "resolution": [
+            640,
+            480
+          ],
+          "first_frame_id": "000000",
+          "cam_K": [
+            [
+              614.429,
+              0.0,
+              323.473
+            ],
+            [
+              0.0,
+              615.125,
+              239.058
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "objects": [
+            {
+              "name": "005_tomato_soup_can",
+              "frames_out_of_frame": 3,
+              "frames_mask_not_visible": 166
+            },
+            {
+              "name": "008_pudding_box",
+              "frames_out_of_frame": 100,
+              "frames_mask_not_visible": 234
+            }
+          ]
+        },
+        "006_mustard_bottle": {
+          "num_frames": 1816,
+          "resolution": [
+            640,
+            480
+          ],
+          "first_frame_id": "000000",
+          "cam_K": [
+            [
+              614.429,
+              0.0,
+              323.473
+            ],
+            [
+              0.0,
+              615.125,
+              239.058
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "objects": [
+            {
+              "name": "006_mustard_bottle",
+              "frames_out_of_frame": 524,
+              "frames_mask_not_visible": 501
+            }
+          ]
+        },
+        "006_mustard_bottle_010_potted_meat_can_005_tomato_soup_can": {
+          "num_frames": 1366,
+          "resolution": [
+            640,
+            480
+          ],
+          "first_frame_id": "000000",
+          "cam_K": [
+            [
+              614.429,
+              0.0,
+              323.473
+            ],
+            [
+              0.0,
+              615.125,
+              239.058
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "objects": [
+            {
+              "name": "005_tomato_soup_can",
+              "frames_out_of_frame": 0,
+              "frames_mask_not_visible": 103
+            },
+            {
+              "name": "006_mustard_bottle",
+              "frames_out_of_frame": 103,
+              "frames_mask_not_visible": 113
+            },
+            {
+              "name": "010_potted_meat_can",
+              "frames_out_of_frame": 95,
+              "frames_mask_not_visible": 166
+            }
+          ]
+        },
+        "006_mustard_bottle_010_potted_meat_can_easy": {
+          "num_frames": 1342,
+          "resolution": [
+            640,
+            480
+          ],
+          "first_frame_id": "000000",
+          "cam_K": [
+            [
+              614.429,
+              0.0,
+              323.473
+            ],
+            [
+              0.0,
+              615.125,
+              239.058
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "objects": [
+            {
+              "name": "006_mustard_bottle",
+              "frames_out_of_frame": 0,
+              "frames_mask_not_visible": 33
+            },
+            {
+              "name": "010_potted_meat_can",
+              "frames_out_of_frame": 0,
+              "frames_mask_not_visible": 11
+            }
+          ]
+        },
+        "006_mustard_bottle_010_potted_meat_can_hard": {
+          "num_frames": 1769,
+          "resolution": [
+            640,
+            480
+          ],
+          "first_frame_id": "000000",
+          "cam_K": [
+            [
+              614.429,
+              0.0,
+              323.473
+            ],
+            [
+              0.0,
+              615.125,
+              239.058
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "objects": [
+            {
+              "name": "006_mustard_bottle",
+              "frames_out_of_frame": 253,
+              "frames_mask_not_visible": 241
+            },
+            {
+              "name": "010_potted_meat_can",
+              "frames_out_of_frame": 54,
+              "frames_mask_not_visible": 225
+            }
+          ]
+        },
+        "008_pudding_box": {
+          "num_frames": 1316,
+          "resolution": [
+            640,
+            480
+          ],
+          "first_frame_id": "000000",
+          "cam_K": [
+            [
+              614.429,
+              0.0,
+              323.473
+            ],
+            [
+              0.0,
+              615.125,
+              239.058
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "objects": [
+            {
+              "name": "008_pudding_box",
+              "frames_out_of_frame": 340,
+              "frames_mask_not_visible": 313
+            }
+          ]
+        },
+        "010_potted_meat_can": {
+          "num_frames": 1419,
+          "resolution": [
+            640,
+            480
+          ],
+          "first_frame_id": "000000",
+          "cam_K": [
+            [
+              614.429,
+              0.0,
+              323.473
+            ],
+            [
+              0.0,
+              615.125,
+              239.058
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "objects": [
+            {
+              "name": "010_potted_meat_can",
+              "frames_out_of_frame": 265,
+              "frames_mask_not_visible": 250
+            }
+          ]
+        },
+        "021_bleach_cleanser": {
+          "num_frames": 1561,
+          "resolution": [
+            640,
+            480
+          ],
+          "first_frame_id": "000000",
+          "cam_K": [
+            [
+              614.429,
+              0.0,
+              323.473
+            ],
+            [
+              0.0,
+              615.125,
+              239.058
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "objects": [
+            {
+              "name": "021_bleach_cleanser",
+              "frames_out_of_frame": 158,
+              "frames_mask_not_visible": 148
+            }
+          ]
+        },
+        "021_bleach_cleanser_005_tomato_soup_can_008_pudding_box": {
+          "num_frames": 1537,
+          "resolution": [
+            640,
+            480
+          ],
+          "first_frame_id": "000000",
+          "cam_K": [
+            [
+              614.429,
+              0.0,
+              323.473
+            ],
+            [
+              0.0,
+              615.125,
+              239.058
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "objects": [
+            {
+              "name": "005_tomato_soup_can",
+              "frames_out_of_frame": 0,
+              "frames_mask_not_visible": 56
+            },
+            {
+              "name": "008_pudding_box",
+              "frames_out_of_frame": 0,
+              "frames_mask_not_visible": 48
+            },
+            {
+              "name": "021_bleach_cleanser",
+              "frames_out_of_frame": 0,
+              "frames_mask_not_visible": 4
+            }
+          ]
+        }
+      }
+    },
+    "sim": {
+      "archive": {
+        "file_name": "YCBMultiTrack-Sim.zip",
+        "size_bytes": 1129918256,
+        "num_files": 16963,
+        "sha256": "59f06f2ce57cafd892ff4f29f63932be272d42f8a4de248188fd3bba4d0c2317"
+      },
+      "num_sequences": 5,
+      "num_frames": 2705,
+      "sequences": {
+        "env0_019_pitcher_base": {
+          "num_frames": 501,
+          "resolution": [
+            640,
+            480
+          ],
+          "first_frame_id": "000001",
+          "cam_K": [
+            [
+              380.0,
+              0.0,
+              320.0
+            ],
+            [
+              0.0,
+              380.0,
+              240.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "objects": [
+            {
+              "name": "019_pitcher_base",
+              "frames_out_of_frame": 0,
+              "frames_mask_not_visible": 0
+            }
+          ]
+        },
+        "env0_037_scissors_002_master_chef_can": {
+          "num_frames": 501,
+          "resolution": [
+            640,
+            480
+          ],
+          "first_frame_id": "000001",
+          "cam_K": [
+            [
+              380.0,
+              0.0,
+              320.0
+            ],
+            [
+              0.0,
+              380.0,
+              240.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "objects": [
+            {
+              "name": "002_master_chef_can",
+              "frames_out_of_frame": 0,
+              "frames_mask_not_visible": 0
+            },
+            {
+              "name": "037_scissors",
+              "frames_out_of_frame": 0,
+              "frames_mask_not_visible": 0
+            }
+          ],
+          "mask_provenance": {
+            "037_scissors": {
+              "masks": "re-rendered from GT pose + textured_simple.obj + depth map",
+              "reason": "original masks duplicated another object's silhouette on part of the sequence",
+              "is_mask_visible_rebuilt": true,
+              "date": "2026-09-11"
+            }
+          }
+        },
+        "env1_004_sugar_box": {
+          "num_frames": 501,
+          "resolution": [
+            640,
+            480
+          ],
+          "first_frame_id": "000001",
+          "cam_K": [
+            [
+              380.0,
+              0.0,
+              320.0
+            ],
+            [
+              0.0,
+              380.0,
+              240.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "objects": [
+            {
+              "name": "004_sugar_box",
+              "frames_out_of_frame": 0,
+              "frames_mask_not_visible": 0
+            }
+          ],
+          "mask_provenance": {
+            "004_sugar_box": {
+              "is_mask_visible_rebuilt": true,
+              "is_mask_visible_reason": "stored label marked frames not-visible while the object was fully visible; rebuilt from measured visibility (rendered depth vs scene depth)",
+              "is_mask_visible_threshold": 0.1,
+              "date": "2026-09-18",
+              "masks": "unchanged (verified correct against re-render)"
+            }
+          }
+        },
+        "env2_072a_toy_airplane_005_tomato_soup_can": {
+          "num_frames": 701,
+          "resolution": [
+            640,
+            480
+          ],
+          "first_frame_id": "000001",
+          "cam_K": [
+            [
+              380.0,
+              0.0,
+              320.0
+            ],
+            [
+              0.0,
+              380.0,
+              240.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "objects": [
+            {
+              "name": "005_tomato_soup_can",
+              "frames_out_of_frame": 0,
+              "frames_mask_not_visible": 0
+            },
+            {
+              "name": "072a_toy_airplane",
+              "frames_out_of_frame": 0,
+              "frames_mask_not_visible": 0
+            }
+          ]
+        },
+        "env3_010_potted_meat_can_004_sugar_box": {
+          "num_frames": 501,
+          "resolution": [
+            640,
+            480
+          ],
+          "first_frame_id": "000001",
+          "cam_K": [
+            [
+              380.0,
+              0.0,
+              320.0
+            ],
+            [
+              0.0,
+              380.0,
+              240.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "objects": [
+            {
+              "name": "004_sugar_box",
+              "frames_out_of_frame": 0,
+              "frames_mask_not_visible": 0
+            },
+            {
+              "name": "010_potted_meat_can",
+              "frames_out_of_frame": 0,
+              "frames_mask_not_visible": 0
+            }
+          ],
+          "mask_provenance": {
+            "004_sugar_box": {
+              "is_mask_visible_rebuilt": true,
+              "is_mask_visible_reason": "stored label marked frames not-visible while the object was fully visible; rebuilt from measured visibility (rendered depth vs scene depth)",
+              "is_mask_visible_threshold": 0.1,
+              "date": "2026-09-18",
+              "masks": "unchanged (verified correct against re-render)"
+            },
+            "010_potted_meat_can": {
+              "is_mask_visible_rebuilt": true,
+              "is_mask_visible_reason": "stored label marked frames not-visible while the object was fully visible; rebuilt from measured visibility (rendered depth vs scene depth)",
+              "is_mask_visible_threshold": 0.1,
+              "date": "2026-09-18",
+              "masks": "unchanged (verified correct against re-render)"
+            }
+          }
+        }
+      }
+    }
+  },
+  "models": {
+    "file_name": "YCBMultiTrack-Models.zip",
+    "size_bytes": 84662625,
+    "num_files": 40,
+    "sha256": "ef77921d3f5b5616dfb9fc58d0f31ae07ec924c5b50316b2bbb400779d4064f6",
+    "objects": [
+      "002_master_chef_can",
+      "004_sugar_box",
+      "005_tomato_soup_can",
+      "006_mustard_bottle",
+      "008_pudding_box",
+      "010_potted_meat_can",
+      "019_pitcher_base",
+      "021_bleach_cleanser",
+      "037_scissors",
+      "072a_toy_airplane"
+    ],
+    "source": "YCB Object and Model Set (CC BY 4.0), via HO3D-v3"
+  }
+}

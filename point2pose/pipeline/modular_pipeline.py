@@ -104,6 +104,12 @@ class ModularPipeline:
         self.sdf_mesh_save_every = int(self.pipeline_cfg.get("sdf_mesh_save_every", 1))
         self.sdf_mesh_save_dir = None
 
+        # SDF bbox re-estimation. The config value is only the starting state;
+        # a viewer can flip it at runtime (toggle_bbox_refine), and turning it
+        # off freezes the box at whatever was last measured.
+        self.bbox_refine_active = bool(self.sdf_builder.bbox_refine)
+        self.bbox_refine_count = 0
+
         if self.debug_dir:
             self.sdf_mesh_save_dir = os.path.join(self.debug_dir, "sdf_mesh")
         else:
@@ -235,6 +241,7 @@ class ModularPipeline:
                     f"Frame {frame.id}: Failed to integrate keyframe for obj {obj.id}"
                 )
                 continue
+            self._refine_bbox_from_sdf(obj, frame)
 
         # 4. Initial Optimization
         if self.use_local_graph:
@@ -575,6 +582,7 @@ class ModularPipeline:
                 print(
                     f"Frame {frame.id}: Updated SDF for obj {kf.obj_id} from keyframe {kf.kf_idx} (num_integrated={obj.sdf_num_integrated})."
                 )
+                self._refine_bbox_from_sdf(obj, frame)
                 if (
                     self.sdf_mesh_save_every > 0
                     and (obj.sdf_num_integrated % self.sdf_mesh_save_every) == 0
@@ -797,6 +805,93 @@ class ModularPipeline:
         rotation = scipy_R.from_matrix(pose_matrix[:3, :3])
         qx, qy, qz, qw = rotation.as_quat()
         return f"{timestamp:.6f} {tx:.6f} {ty:.6f} {tz:.6f} {qx:.6f} {qy:.6f} {qz:.6f} {qw:.6f}\n"
+
+    def _refine_bbox_from_sdf(self, obj, frame):
+        """
+        Replace obj.bbox with a box measured from the fused TSDF.
+
+        Off unless reconstructor.params.bbox_sdf_refine_enable is set. The box
+        stays in the object frame, which is the frame obj.bbox is drawn in.
+        """
+        if not self.bbox_refine_active:
+            return
+        every = self.sdf_builder.bbox_every
+        if every > 1 and (int(getattr(obj, "sdf_num_integrated", 0)) % every) != 0:
+            return
+        if self._refine_bbox_once(obj) and self.debug_level > 1:
+            print(
+                f"Frame {frame.id}: obj {obj.id} bbox from SDF -> "
+                f"extent {np.asarray(obj.bbox.extent)}"
+            )
+
+    def _refine_bbox_once(self, obj):
+        """One re-estimate attempt, ignoring the active flag. True if applied."""
+        try:
+            box = self.sdf_builder.estimate_bbox(obj)
+        except Exception as exc:
+            print(f"SDF bbox refine failed for obj {obj.id}: {exc}")
+            return False
+        if box is None:
+            return False
+        box = self._sdf_box_to_object_frame(box, obj)
+        obj.bbox = box
+        obj.bbox_local = box
+        obj.bbox_from_sdf = True
+        self.bbox_refine_count += 1
+        return True
+
+    @staticmethod
+    def _sdf_box_to_object_frame(box, obj):
+        """
+        Re-express an SDF box in the frame obj.bbox is drawn in.
+
+        Keyframes are anchored with `anchor_pose = obj.pose`, so the fused SDF
+        lives in the map (frame-0) frame. Consumers draw a box through
+        `obj.pose @ obj.init_pose`, which would apply init_pose a second time,
+        putting the box at the wrong place and orientation. Strip it here.
+        """
+        init_pose = np.asarray(getattr(obj, "init_pose", None), dtype=float)
+        if init_pose.shape != (4, 4):
+            return box
+        R_i, t_i = init_pose[:3, :3], init_pose[:3, 3]
+        center = R_i.T @ (np.asarray(box.center, dtype=float) - t_i)
+        rot = R_i.T @ np.asarray(box.R, dtype=float)
+        return o3d.geometry.OrientedBoundingBox(
+            center, rot, np.asarray(box.extent, dtype=float)
+        )
+
+    def toggle_bbox_refine(self):
+        """
+        Flip SDF bbox re-estimation on/off; returns the new state.
+
+        Turning it on re-estimates immediately rather than waiting for the next
+        keyframe, so the box responds to the keypress. Turning it off leaves the
+        last measured box in place -- that is what "fix" means here.
+        """
+        self.set_bbox_refine(not self.bbox_refine_active)
+        return self.bbox_refine_active
+
+    def set_bbox_refine(self, active):
+        active = bool(active)
+        if active and not self.sdf_builder.enabled:
+            print("[BBox] SDF fusion is off (build_sdf_after_global_opt), cannot refine")
+            return self.bbox_refine_active
+        self.bbox_refine_active = active
+        if active:
+            applied = sum(int(self._refine_bbox_once(o)) for o in self.objects)
+            print(
+                f"[BBox] estimating from SDF (refined {applied}/{len(self.objects)} "
+                f"object(s) now)"
+            )
+        else:
+            print(f"[BBox] fixed after {self.bbox_refine_count} update(s)")
+        return self.bbox_refine_active
+
+    def bbox_refine_status(self):
+        """'ESTIMATING' | 'FIXED' | 'OFF' -- for a viewer overlay."""
+        if self.bbox_refine_active:
+            return "ESTIMATING"
+        return "FIXED" if self.bbox_refine_count > 0 else "OFF"
 
     def _estimate_init_pose_and_bbox_for_all_obj(self, frame):
         out_pose = np.tile(np.eye(4), (self.num_obj, 1, 1))

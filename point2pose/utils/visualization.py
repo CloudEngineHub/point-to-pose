@@ -63,14 +63,11 @@ def draw_points_on_image(image, points, colors):
     if isinstance(colors, np.ndarray):
         colors = colors.tolist()
 
-    for i in range(points.shape[0]):
-        cv2.circle(
-            image,
-            points[i, :].astype(int).reshape(2),
-            radius=5,
-            color=colors[i],
-            thickness=-1,
-        )
+    points = np.asarray(points).reshape(-1, 2)
+    # Cast every coordinate in one pass: the per-point astype/reshape allocated a
+    # fresh array per circle, which cost more than the drawing itself.
+    for (x, y), color in zip(points.astype(np.int32).tolist(), colors):
+        cv2.circle(image, (x, y), radius=5, color=color, thickness=-1)
 
 
 def _map_track_ids_to_obj_rows(obj, track_ids):
@@ -425,43 +422,20 @@ def draw_xyz_axis(
     line_type = cv2.LINE_AA
     arrow_len = 0
     tmp = image.copy()
-    tmp1 = tmp.copy()
-    tmp1 = cv2.arrowedLine(
-        tmp1,
-        origin,
-        xx,
-        color=(0, 0, 255),
-        thickness=thickness,
-        line_type=line_type,
-        tipLength=arrow_len,
-    )
-    mask = np.linalg.norm(tmp1 - tmp, axis=-1) > 0
-    tmp[mask] = tmp[mask] * transparency + tmp1[mask] * (1 - transparency)
-    tmp1 = tmp.copy()
-    tmp1 = cv2.arrowedLine(
-        tmp1,
-        origin,
-        yy,
-        color=(0, 255, 0),
-        thickness=thickness,
-        line_type=line_type,
-        tipLength=arrow_len,
-    )
-    mask = np.linalg.norm(tmp1 - tmp, axis=-1) > 0
-    tmp[mask] = tmp[mask] * transparency + tmp1[mask] * (1 - transparency)
-    tmp1 = tmp.copy()
-    tmp1 = cv2.arrowedLine(
-        tmp1,
-        origin,
-        zz,
-        color=(255, 0, 0),
-        thickness=thickness,
-        line_type=line_type,
-        tipLength=arrow_len,
-    )
-    mask = np.linalg.norm(tmp1 - tmp, axis=-1) > 0
-    tmp[mask] = tmp[mask] * transparency + tmp1[mask] * (1 - transparency)
-    tmp = tmp.astype(np.uint8)
+    for end, color in ((xx, (0, 0, 255)), (yy, (0, 255, 0)), (zz, (255, 0, 0))):
+        cv2.arrowedLine(
+            tmp,
+            origin,
+            end,
+            color=color,
+            thickness=thickness,
+            line_type=line_type,
+            tipLength=arrow_len,
+        )
+    if transparency > 0:
+        # Pixels the arrows missed blend to themselves, so this is equivalent to
+        # masking to the drawn pixels -- without the per-axis image diff.
+        tmp = cv2.addWeighted(image, transparency, tmp, 1 - transparency, 0)
     if is_input_rgb:
         tmp = cv2.cvtColor(tmp, cv2.COLOR_BGR2RGB)
 
@@ -912,27 +886,21 @@ def visualize_and_save_tracking_results(
                     colors[inl] = (0, 255, 0)
                     colors[~inl] = (0, 0, 255)
 
-                # Draw vectors and endpoints.
-                for uv_pred, uv_obs, col in zip(pred_uv, obs_uv, colors):
-                    p0 = tuple(np.round(uv_pred).astype(int).tolist())
-                    p1 = tuple(np.round(uv_obs).astype(int).tolist())
-                    cv2.line(
-                        display_frame,
-                        p0,
-                        p1,
-                        color=tuple(int(x) for x in col),
-                        thickness=1,
-                    )
+                # Draw vectors and endpoints. Round/cast both endpoint arrays and
+                # the colors once up front rather than per correspondence.
+                for p0, p1, col in zip(
+                    np.round(pred_uv).astype(np.int32).tolist(),
+                    np.round(obs_uv).astype(np.int32).tolist(),
+                    colors.tolist(),
+                ):
+                    p0 = (p0[0], p0[1])
+                    p1 = (p1[0], p1[1])
+                    col = (col[0], col[1], col[2])
+                    cv2.line(display_frame, p0, p1, color=col, thickness=1)
                     cv2.circle(
                         display_frame, p0, radius=2, color=(255, 255, 255), thickness=-1
                     )
-                    cv2.circle(
-                        display_frame,
-                        p1,
-                        radius=3,
-                        color=tuple(int(x) for x in col),
-                        thickness=-1,
-                    )
+                    cv2.circle(display_frame, p1, radius=3, color=col, thickness=-1)
         # elif points_vis_method == "frame_id":
         #     # Color each point based on the frame id it was first seen (object.key_point_frames)
         #     for i, obj in enumerate(objects):
@@ -1011,12 +979,25 @@ def visualize_and_save_tracking_results(
                 bbox_src = getattr(obj, "bbox", None)
                 bbox_from_object = True
 
-            pose_use, bbox_min_max_use, bbox_corners_use = _resolve_pose_and_bbox(
-                pose_in_cam=pose_mesh_in_cam,
-                bbox_source=bbox_src,
-                bbox_frame=bbox_frame,
-                assume_pose_is_bbox_center=bbox_from_object,
-            )
+            # A box refined from the SDF carries a real centre offset and
+            # rotation in this pose's frame, so draw its corners rather than
+            # re-centring its extent on the pose origin.
+            box_local = getattr(obj, "bbox_local", None)
+            if bbox_min_max is None and box_local is not None:
+                pose_use = pose_mesh_in_cam
+                bbox_min_max_use = None
+                bbox_corners_use = _box_corners_from_center_extent(
+                    np.asarray(box_local.center, dtype=float),
+                    np.asarray(box_local.extent, dtype=float),
+                    np.asarray(box_local.R, dtype=float),
+                )
+            else:
+                pose_use, bbox_min_max_use, bbox_corners_use = _resolve_pose_and_bbox(
+                    pose_in_cam=pose_mesh_in_cam,
+                    bbox_source=bbox_src,
+                    bbox_frame=bbox_frame,
+                    assume_pose_is_bbox_center=bbox_from_object,
+                )
 
             if bbox_corners_use is not None:
                 display_frame = draw_oriented_3d_box(

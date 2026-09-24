@@ -2,6 +2,7 @@ import numpy as np
 import os
 
 from numba import njit, prange
+import scipy.ndimage as ndi
 import open3d as o3d
 import trimesh
 from skimage import measure
@@ -308,6 +309,12 @@ class TSDFVolume:
             cuda.memcpy_dtoh(self._color_vol_cpu, self._color_vol_gpu)
         return self._tsdf_vol_cpu, self._color_vol_cpu
 
+    def get_weight_volume(self):
+        """Per-voxel accumulated observation weight; 0 means never observed."""
+        if self.gpu_mode:
+            cuda.memcpy_dtoh(self._weight_vol_cpu, self._weight_vol_gpu)
+        return self._weight_vol_cpu
+
 
 class NvbloxVolume:
     """
@@ -407,6 +414,10 @@ class NvbloxVolume:
         # nvblox keeps sparse layers internally; dense export is optional.
         return None, None
 
+    def get_weight_volume(self):
+        # No dense weight grid to hand back; callers must degrade gracefully.
+        return None
+
     def query_sdf(self, pts_obj: np.ndarray) -> Optional[np.ndarray]:
         pts = np.asarray(pts_obj, dtype=np.float32)
         for name in ["query_sdf", "query_tsdf", "interpolate_tsdf"]:
@@ -451,6 +462,27 @@ class SDFBuilder:
         self.min_points = int(cfg.get("sdf_min_points", 300))
         self.max_radius = float(cfg.get("sdf_filter_max_radius", 0.25))
         self.keep_percentile = float(cfg.get("sdf_filter_keep_percentile", 98.0))
+
+        # --- SDF-based bbox re-estimation (see estimate_bbox) ---
+        self.bbox_refine = bool(cfg.get("bbox_sdf_refine_enable", False))
+        self.bbox_min_integrations = int(cfg.get("bbox_sdf_min_integrations", 3))
+        self.bbox_every = int(cfg.get("bbox_sdf_refine_every", 1))
+        self.bbox_surface_band = float(cfg.get("bbox_sdf_surface_band", 0.5))
+        self.bbox_min_weight = float(cfg.get("bbox_sdf_min_weight", 2.0))
+        self.bbox_open_iters = int(cfg.get("bbox_sdf_open_iters", 1))
+        # 1.0 keeps only the largest component; lower values also keep fragments
+        # down to that fraction of it.
+        self.bbox_component_ratio = float(cfg.get("bbox_sdf_keep_component_ratio", 1.0))
+        self.bbox_min_component_voxels = int(
+            cfg.get("bbox_sdf_min_component_voxels", 32)
+        )
+        self.bbox_trim_percentile = float(cfg.get("bbox_sdf_trim_percentile", 99.5))
+        self.bbox_band_compensate = bool(cfg.get("bbox_sdf_band_compensate", True))
+        self.bbox_min_voxels = int(cfg.get("bbox_sdf_min_voxels", 64))
+        self.bbox_oriented = bool(cfg.get("bbox_sdf_oriented", False))
+        self.bbox_max_rel_change = float(cfg.get("bbox_sdf_max_rel_extent_change", 3.0))
+        self.bbox_smooth_alpha = float(cfg.get("bbox_sdf_smooth_alpha", 0.0))
+        self.bbox_debug = bool(cfg.get("bbox_sdf_debug", False))
 
     def _filter_points(self, pts_obj):
         if pts_obj.shape[0] == 0:
@@ -566,6 +598,193 @@ class SDFBuilder:
         if color_vol is not None:
             obj.sdf["color"] = color_vol.copy()
         return True
+
+    # ------------------------------------------------------------------ bbox
+    def _surface_voxel_mask(self, tsdf_vol, weight_vol):
+        """
+        Voxels on the fused surface, after noise rejection.
+
+        Three filters, cheapest first:
+          1. observation weight -- a voxel carved by a single noisy depth pixel
+             keeps weight 1 forever, while real surface is re-observed every
+             keyframe. This is the filter that removes depth speckle.
+          2. zero-crossing band -- |tsdf| is normalised so 1.0 is one truncation
+             margin (5 voxels), so the default 0.5 keeps ~2.5 voxels either side.
+          3. morphological opening -- erodes then dilates, which deletes
+             isolated voxels and one-voxel bridges but leaves bulk surface.
+        Returns a bool volume, or None if nothing survives.
+        """
+        mask = np.abs(tsdf_vol) < self.bbox_surface_band
+        if weight_vol is not None and self.bbox_min_weight > 0:
+            mask &= weight_vol >= self.bbox_min_weight
+        if not mask.any():
+            return None
+
+        if self.bbox_open_iters > 0:
+            structure = ndi.generate_binary_structure(3, 1)
+            opened = ndi.binary_opening(
+                mask, structure=structure, iterations=self.bbox_open_iters
+            )
+            # Opening a thin shell can erase it outright; only take it if it
+            # left something behind.
+            if opened.any():
+                mask = opened
+        return mask
+
+    def _largest_components(self, mask):
+        """
+        Drop connected components that are small relative to the biggest one.
+
+        A TSDF fused through an imperfect mask picks up fragments of whatever
+        the mask leaked onto -- table, hand, the far wall. Those land as
+        components disconnected from the object, and a box fitted to the union
+        spans the gap between them. Keeping only components within
+        `keep_component_ratio` of the largest removes that discontinuity.
+        """
+        structure = ndi.generate_binary_structure(3, 3)  # 26-connectivity
+        labels, n = ndi.label(mask, structure=structure)
+        if n <= 1:
+            return mask, max(n, 0)
+
+        counts = np.bincount(labels.ravel())
+        counts[0] = 0  # background
+        largest = counts.max()
+        min_size = max(
+            self.bbox_min_component_voxels, int(self.bbox_component_ratio * largest)
+        )
+        # Floor of 1 keeps label 0 (background, counted as 0 above) out of the
+        # selection when both size thresholds are configured away.
+        keep_ids = np.flatnonzero(counts >= max(min_size, 1))
+        if keep_ids.size == 0:
+            keep_ids = np.array([int(counts.argmax())])
+        keep = np.isin(labels, keep_ids)
+        return keep, int(keep_ids.size)
+
+    def estimate_bbox(self, obj):
+        """
+        Re-estimate an object's box from its fused TSDF, in the OBJECT frame.
+
+        The initial box is fitted to a single masked view, so it only covers the
+        first visible surface and systematically underestimates the extent along
+        the viewing direction. Once several keyframes are fused the TSDF also
+        covers what has been seen since, and its zero level set is a far better
+        thing to measure.
+
+        Returns an open3d OrientedBoundingBox in the object frame, or None when
+        the SDF is not usable yet. Axis-aligned by default: every current
+        consumer reads only `.extent` and draws it on the object axes, so an
+        oriented fit would report extents along axes nobody applies.
+        """
+        vol = getattr(obj, "sdf_volume", None)
+        if vol is None:
+            return None
+        if int(getattr(obj, "sdf_num_integrated", 0)) < self.bbox_min_integrations:
+            return None
+
+        tsdf_vol, _ = vol.get_volume()
+        if tsdf_vol is None:  # nvblox backend keeps no dense grid
+            return None
+        weight_vol = (
+            vol.get_weight_volume() if hasattr(vol, "get_weight_volume") else None
+        )
+
+        mask = self._surface_voxel_mask(tsdf_vol, weight_vol)
+        if mask is None:
+            return None
+        mask, n_components = self._largest_components(mask)
+
+        idx = np.argwhere(mask)
+        if idx.shape[0] < self.bbox_min_voxels:
+            return None
+
+        pts = idx.astype(np.float32) * float(vol._voxel_size) + vol._vol_origin[None, :]
+
+        # Final radial trim for anything that survived as a large blob but still
+        # sits far off the body of the object.
+        if 0 < self.bbox_trim_percentile < 100 and pts.shape[0] >= 8:
+            center = np.median(pts, axis=0)
+            dist = np.linalg.norm(pts - center[None, :], axis=1)
+            keep = dist <= np.percentile(dist, self.bbox_trim_percentile)
+            if keep.sum() >= self.bbox_min_voxels:
+                pts = pts[keep]
+
+        box = self._fit_box(pts)
+        if box is None:
+            return None
+        box = self._compensate_band(box, vol)
+
+        prev = getattr(obj, "bbox", None)
+        box = self._guard_and_smooth(box, prev)
+        if self.bbox_debug:
+            print(
+                f"[SDF-bbox] obj {getattr(obj, 'obj_id', '?')}: "
+                f"{pts.shape[0]} surface voxels, {n_components} component(s) kept, "
+                f"extent {np.asarray(box.extent)}"
+            )
+        return box
+
+    def _fit_box(self, pts):
+        if self.bbox_oriented:
+            try:
+                pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(pts))
+                return pcd.get_oriented_bounding_box()
+            except Exception as exc:
+                # Degenerate / coplanar point sets make Qhull throw.
+                print(f"Warning: SDF OBB fit failed ({exc}), using axis-aligned box.")
+        lo = pts.min(axis=0).astype(float)
+        hi = pts.max(axis=0).astype(float)
+        return o3d.geometry.OrientedBoundingBox(
+            0.5 * (lo + hi), np.eye(3), np.maximum(hi - lo, 1e-6)
+        )
+
+    def _compensate_band(self, box, vol):
+        """
+        Undo the inflation from measuring a band instead of the surface.
+
+        The surface sits at tsdf == 0 but the mask keeps everything out to
+        |tsdf| < band, which reaches `band * trunc_margin` metres past it on
+        each side. Left in, that over-reports a 10 cm object by ~2 cm at the
+        default settings.
+        """
+        if not self.bbox_band_compensate:
+            return box
+        trunc = float(getattr(vol, "_trunc_margin", 5.0 * vol._voxel_size))
+        shrink = 2.0 * self.bbox_surface_band * trunc
+        extent = np.asarray(box.extent, dtype=float)
+        extent = np.maximum(extent - shrink, float(vol._voxel_size))
+        return o3d.geometry.OrientedBoundingBox(
+            np.asarray(box.center, dtype=float), np.asarray(box.R, dtype=float), extent
+        )
+
+    def _guard_and_smooth(self, box, prev):
+        """Reject implausible jumps, then optionally damp the accepted change."""
+        if prev is None:
+            return box
+        prev_extent = np.asarray(getattr(prev, "extent", None), dtype=float).reshape(-1)
+        if prev_extent.size != 3 or not np.all(prev_extent > 0):
+            return box
+
+        extent = np.asarray(box.extent, dtype=float)
+        if self.bbox_max_rel_change > 1.0:
+            ratio = np.maximum(
+                extent / prev_extent, prev_extent / np.maximum(extent, 1e-9)
+            )
+            if np.any(ratio > self.bbox_max_rel_change):
+                if self.bbox_debug:
+                    print(
+                        f"[SDF-bbox] rejected: extent {extent} vs previous "
+                        f"{prev_extent} exceeds {self.bbox_max_rel_change}x"
+                    )
+                return prev
+
+        if 0.0 < self.bbox_smooth_alpha < 1.0:
+            a = self.bbox_smooth_alpha
+            extent = a * extent + (1.0 - a) * prev_extent
+            return o3d.geometry.OrientedBoundingBox(
+                np.asarray(box.center, dtype=float), np.asarray(box.R, dtype=float),
+                np.maximum(extent, 1e-6),
+            )
+        return box
 
     def export_debug_mesh(self, obj, save_path):
         if getattr(obj, "sdf_volume", None) is None:

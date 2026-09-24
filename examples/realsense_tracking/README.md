@@ -31,6 +31,7 @@ This example demonstrates how to use the point2pose pipeline with a RealSense ca
    - **Right click**: Add negative point (background/exclusion)
    - **Press 's'**: Start tracking
    - **Press 'r'**: Reset points and restart
+   - **Press 'b'**: Re-measure the object box from the fused SDF; press again to fix it
    - **Press 'q'**: Quit
 
 ## How it works
@@ -55,7 +56,7 @@ This example demonstrates how to use the point2pose pipeline with a RealSense ca
 
 ## Configuration
 
-The tracker uses the pipeline configuration file (`configs/pipeline/pipeline_test.yaml`). Key settings:
+The tracker uses the pipeline configuration file (`configs/realsense/default.yaml`). Key settings:
 
 - `estimate_init_pose`: Whether to estimate initial bounding boxes
 - `debug_level`: Debug output level (0-2)

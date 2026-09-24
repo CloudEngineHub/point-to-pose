@@ -43,6 +43,11 @@ class TapirTracker(Tracker):
         self._resize_height = config.get("resize_height", 256)
         self._resize_width = config.get("resize_width", 256)
         self._visible_threshold = config.get("visible_threshold", 0.5)
+        # Query points are refined in chunks of this many. The upstream demo
+        # value 64 was tuned for memory on small GPUs and costs several
+        # sequential passes once many points are live; 0 = all in one chunk.
+        # Left at 64 so existing configs keep their exact behaviour.
+        self._query_chunk_size = int(config.get("query_chunk_size", 64))
 
         self._device = config.get("device", "cpu")
         # self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -305,13 +310,16 @@ class TapirTracker(Tracker):
 
         # print(f"query_features resolutions: {query_features.resolutions}")
 
+        n_query = int(query_features.lowres[0].shape[1])
+        chunk_size = self._query_chunk_size if self._query_chunk_size > 0 else n_query
+
         trajectories = model.estimate_trajectories(
             frames.shape[-3:-1],
             is_training=False,
             feature_grids=feature_grids,
             query_features=query_features,
             query_points_in_video=None,
-            query_chunk_size=64,
+            query_chunk_size=max(1, min(chunk_size, n_query)),
             causal_context=causal_context,
             get_causal_context=True,
         )

@@ -16,8 +16,10 @@ from point2pose.data_types.frame import Frame
 from point2pose.utils.visualization import (
     draw_xyz_axis,
     draw_posed_3d_box,
+    draw_oriented_3d_box,
     draw_points_on_image,
     get_n_uncertainty_colors,
+    _box_corners_from_center_extent,
 )
 
 
@@ -29,7 +31,7 @@ class RealSensePipelineTracker:
 
     def __init__(
         self,
-        config_path="configs/pipeline/pipeline_test2.yaml",
+        config_path="configs/realsense/default.yaml",
         # rs_serial=242422304947
         # rs_serial=941322070969,
     ):
@@ -217,6 +219,18 @@ class RealSensePipelineTracker:
 
         overlay = cv2.cvtColor(overlay, cv2.COLOR_HSV2BGR)
         return cv2.addWeighted(display_bgr, 1, overlay, 0.5, 0)
+
+    def toggle_bbox_refine(self):
+        """'b': start re-measuring the object box from the SDF, or fix it."""
+        if not self.tracking_started:
+            print("[BBox] start tracking first ('s')")
+            return
+        active = self.pipeline.toggle_bbox_refine()
+        print(
+            "[BBox] estimating from SDF - press 'b' again to fix"
+            if active
+            else "[BBox] fixed at the current box"
+        )
 
     def reset_points(self):
         """Reset collected points and restart tracking"""
@@ -539,15 +553,29 @@ class RealSensePipelineTracker:
         for i, obj in enumerate(objects):
             if obj.pose is not None:
                 pose = obj.pose @ obj.init_pose
-                half = 0.5 * np.asarray(obj.bbox.extent, dtype=float)
-                bbox_min_max_local = np.vstack([-half, +half])  # (2,3)
-
-                display_frame = draw_posed_3d_box(
-                    self.camera_intrinsics,
-                    display_frame,
-                    pose,
-                    bbox_min_max_local,
-                )
+                # obj.bbox is the initial box in world coordinates, and its own
+                # pose is init_pose, so only its extent may be used here --
+                # its centre and R would apply init_pose twice. A refined box
+                # arrives as bbox_local, already in this frame, so that one can
+                # be drawn where it was actually measured.
+                box_local = getattr(obj, "bbox_local", None)
+                if box_local is None:
+                    half = 0.5 * np.asarray(obj.bbox.extent, dtype=float)
+                    display_frame = draw_posed_3d_box(
+                        self.camera_intrinsics,
+                        display_frame,
+                        pose,
+                        np.vstack([-half, +half]),
+                    )
+                else:
+                    corners = _box_corners_from_center_extent(
+                        np.asarray(box_local.center, dtype=float),
+                        np.asarray(box_local.extent, dtype=float),
+                        np.asarray(box_local.R, dtype=float),
+                    )
+                    display_frame = draw_oriented_3d_box(
+                        self.camera_intrinsics, display_frame, pose, corners
+                    )
                 display_frame = draw_xyz_axis(
                     image=display_frame, ob_in_cam=pose, K=self.camera_intrinsics
                 )
@@ -679,6 +707,16 @@ class RealSensePipelineTracker:
                         (255, 255, 255),
                         2,
                     )
+                    status = self.pipeline.bbox_refine_status()
+                    cv2.putText(
+                        display_frame,
+                        f"BBox [b]: {status}",
+                        (10, height - 90),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.7,
+                        (0, 255, 255) if status == "ESTIMATING" else (255, 255, 255),
+                        2,
+                    )
 
                     self.frame_count += 1
 
@@ -698,6 +736,8 @@ class RealSensePipelineTracker:
                     self.next_object()
                 elif key == ord("r"):
                     self.reset_points()
+                elif key == ord("b"):
+                    self.toggle_bbox_refine()
 
         except KeyboardInterrupt:
             print("Interrupted by user")

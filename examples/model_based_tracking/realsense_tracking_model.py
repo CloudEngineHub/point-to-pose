@@ -13,7 +13,7 @@ equal TAPIR's img_* and the map render resolution.
 Run (in the ``point2pose`` conda env):
     PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
     python examples/model_based_tracking/realsense_tracking_model.py \
-        --config configs/pipeline/model_tracking.yaml [--viser]
+        --config configs/realsense/model_tracking.yaml [--viser]
 """
 
 import argparse
@@ -41,7 +41,7 @@ from point2pose.utils.visualization import (
 )
 
 REPO = Path(__file__).resolve().parents[2]
-DEFAULT_CONFIG = REPO / "configs/pipeline/model_tracking.yaml"
+DEFAULT_CONFIG = REPO / "configs/realsense/model_tracking.yaml"
 WIN = "Model Tracker"
 DEPTH_WIN = "Live Depth"
 

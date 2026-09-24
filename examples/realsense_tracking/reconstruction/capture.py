@@ -8,7 +8,7 @@ for train_gaussians.py to consume afterward.
 
 Run:
     python examples/realsense_tracking/reconstruction/capture.py \
-        --config configs/pipeline/reconstruction_capture.yaml --export-dir debug/capture_test
+        --config configs/realsense/reconstruction_capture.yaml --export-dir debug/capture_test
 """
 
 import argparse
@@ -27,7 +27,7 @@ _spec.loader.exec_module(_rt)
 
 from point2pose.pipeline.components.reconstruction_exporter import ReconstructionExporter
 
-DEFAULT_CONFIG = REPO / "configs/pipeline/reconstruction_capture.yaml"
+DEFAULT_CONFIG = REPO / "configs/realsense/reconstruction_capture.yaml"
 
 
 class RealSenseCaptureTracker(_rt.RealSensePipelineTracker):

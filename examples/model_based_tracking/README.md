@@ -6,18 +6,18 @@ Instead of online point map building, this model-based tracking renders the mesh
 ### Model-based tracking from a textured mesh
 ```bash
 python examples/model_based_tracking/realsense_tracking_model.py \
-    --config configs/pipeline/model_tracking.yaml
+    --config configs/realsense/model_tracking.yaml
 ```
 
 ### Model-based tracking from a trained gaussian splat
 
 Once you have a `gaussians.pt`, use it as the model-based tracking map instead of a
-textured mesh with `configs/pipeline/model_tracking_gsplat.yaml` (same as
+textured mesh with `configs/realsense/model_tracking_gsplat.yaml` (same as
 `model_tracking.yaml` but `renderer: gsplat`; set `model_tracking.params.gsplat_path`
 to your checkpoint):
 ```bash
 python examples/model_based_tracking/realsense_tracking_model.py \
-    --config configs/pipeline/model_tracking_gsplat.yaml
+    --config configs/realsense/model_tracking_gsplat.yaml
 ```
 
 <img src="../../assets/videos/point-to-pose-gsplat-example.gif" alt="Model-based tracking demo" style="max-width: 100%;" />

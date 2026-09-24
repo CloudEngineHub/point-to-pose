@@ -25,27 +25,19 @@
 
 </div>
 
----
+
+## 📰 News and Updates
+- **[09/2026]** Point2Pose now runs **real-time** at **30 Hz** on a NVIDIA 4090 GPU!
+- **[09/2026]** The live demo can now **re-measure an object's bounding box from the fused SDF**. Press `b` while tracking. [Details](#refining-the-object-box-from-the-sdf-b)
+- **[08/2026]** Model-based Point2Pose is released along with Gaussian splats reconstruction! 
+- **[06/2026]** Point2Pose is accepted to **ECCV 2026**! 
+
+## 🎯 About
 
 **Point2Pose** is a *model-free* method for causal 6D pose tracking of **multiple rigid objects** from RGB-D video, initialized from a few clicked image points. Long-range 2D point tracks keep correspondences alive, so a **fully occluded object is re-localized the instant it reappears** — and each target is reconstructed as a textured mesh while tracking.
 
 ## Disclaimer
 **The readme is AI-generated. Please submit an issue if you find any problem.**
-
-## ✨ Highlights
-
-- **Model-free** — click a few points. No CAD model, no training.
-- **Multi-object** — many objects at once, through mutual occlusion.
-- **Occlusion recovery** — re-localized the instant the object reappears.
-- **3D reconstruction** — online TSDF fusion, one textured mesh per object.
-- **Modular** — every stage swappable from one YAML file.
-- **Live demo** — RealSense, with an interactive [Rerun](https://rerun.io) 3D viewer.
-- **New dataset** — `YCBMultiTrack`: multi-object RGB-D with mocap ground truth.
-
-
-## 📰 News and Updates
-- **[08/2026]** Model-based Point2Pose is released along with Gaussian splats reconstruction! 
-- **[06/2026]** Point2Pose is accepted to **ECCV 2026**! 
 
 ## 🆕 Model-Based Point2Pose
 
@@ -61,13 +53,16 @@ We recently made a **model-based** variant of Point2Pose. The new framework supp
 
 ## 📑 Table of Contents
 
+- [About](#-about)
 - [Installation](#-installation)
+  - [Swappable point trackers](#swappable-point-trackers)
+  - [Choosing a SAM2 checkpoint](#choosing-a-sam2-checkpoint)
 - [Model-Based Point2Pose](#-model-based-point2pose)
 - [RealSense Live Demo](#-realsense-live-demo)
+  - [Refining the object box from the SDF (`b`)](#refining-the-object-box-from-the-sdf-b)
 - [Running on Datasets](#-running-on-datasets)
 - [Configuration & Architecture](#-configuration--architecture)
 - [Outputs and Logging](#-outputs-and-logging)
-- [Benchmarking Point Trackers](#-benchmarking-point-trackers)
 - [Repository Structure](#-repository-structure)
 - [Known Issues](#-known-issues)
 - [Acknowledgements](#-acknowledgements)
@@ -145,7 +140,8 @@ pip install --no-build-isolation -r requirements-third-party.txt
 ```bash
 # SAM2 (from inside the segment-anything-2-real-time clone)
 cd checkpoints && ./download_ckpts.sh
-# then copy/symlink sam2.1_hiera_large.pt into point-to-pose/checkpoints/sam2.1/
+# then copy/symlink sam2.1_hiera_small.pt (default) and/or
+# sam2.1_hiera_large.pt into point-to-pose/checkpoints/sam2.1/
 
 # BootsTAPIR (default tracker)
 wget -P checkpoints/tapir https://storage.googleapis.com/dm-tapnet/causal_tapir_checkpoint.npy
@@ -155,17 +151,39 @@ Expected layout (paths are configurable in the YAML configs):
 
 ```
 checkpoints/
-├── sam2.1/    sam2.1_hiera_large.pt          # segmentation
+├── sam2.1/    sam2.1_hiera_small.pt          # segmentation (default)
+│              sam2.1_hiera_large.pt          # segmentation (higher fidelity)
 ├── tapir/     causal_bootstapir_checkpoint.pt # default point tracker
 ├── tapnext/   tapnextpp_ckpt.pt              # optional tracker
 └── trackon/   trackon2_dinov2_checkpoint.pt  # optional tracker
+```
+
+### Choosing a SAM2 checkpoint
+
+SAM2 runs on **every** frame, so which checkpoint you pick is the single biggest lever on live latency. The default config uses `small`; `large` is what the paper results were produced with.
+
+| Checkpoint | `model_cfg` | Latency* | Use it for |
+|---|---|---|---|
+| `sam2.1_hiera_small.pt` | `configs/sam2.1/sam2.1_hiera_s.yaml` | ~15 ms | **Default.** Live tracking — [configs/realsense/default.yaml](configs/realsense/default.yaml) |
+| `sam2.1_hiera_large.pt` | `configs/sam2.1/sam2.1_hiera_l.yaml` | ~35 ms | Best mask quality — [configs/realsense/default_high_res.yaml](configs/realsense/default_high_res.yaml), dataset runs |
+| `sam2.1_hiera_tiny.pt` | `configs/sam2.1/sam2.1_hiera_t.yaml` | faster still | When even `small` is too slow |
+
+<sub>*Measured on an RTX 4090 at 640×480, single object. Swap by editing the `segmenter:` block:</sub>
+
+```yaml
+segmenter:
+  type: sam2
+  params:
+    model_cfg: configs/sam2.1/sam2.1_hiera_s.yaml   # _l.yaml for large
+    checkpoint: <repo>/checkpoints/sam2.1/sam2.1_hiera_small.pt
+    device: cuda
 ```
 
 > ⚠️ **Update the paths in the configs.** The YAML files under [configs/](configs/) currently contain absolute paths (`/home/justin/code/point-to-pose/...`, `/home/justin/data/...`). Point `checkpoint_path`, `debug_dir`, and `pose_save_path` at your own locations before running.
 
 ### Swappable point trackers
 
-The default tracker is BootsTAPIR (`type: tapir`). Four alternatives ship with the repo — all implement the same `Tracker` interface (`initialize`, `add_query_points`, `track_once`) and are selected purely by the `tracker:` block of the pipeline config. Example blocks for each are in [configs/pipeline/pipeline_test2.yaml](configs/pipeline/pipeline_test2.yaml).
+The default tracker is BootsTAPIR (`type: tapir`). Four alternatives ship with the repo — all implement the same `Tracker` interface (`initialize`, `add_query_points`, `track_once`) and are selected purely by the `tracker:` block of the pipeline config. Example blocks for each are in [configs/realsense/default.yaml](configs/realsense/default.yaml).
 
 | `type` | Method | Latency* | Notes |
 |---|---|---|---|
@@ -248,13 +266,15 @@ rs-enumerate-devices -s     # find your serial
 Set it in the config you plan to use:
 
 ```yaml
-# configs/pipeline/pipeline_test2.yaml
+# configs/realsense/default.yaml
 realsense:
   params:
     rs_serial: 941322070969
 ```
 
 Other keys worth checking in the same file: `pipeline.params.max_num_obj` (how many objects to track), `estimate_init_pose`, `debug_level`, `save_pose` / `pose_save_path`, and the `tracker:` block.
+
+[configs/realsense/default.yaml](configs/realsense/default.yaml) is tuned for live tracking: TAPIR runs on a SAM-mask-centred crop (`type: tapir_crop`) at 256×256, all query points are refined in one chunk rather than the hardcoded 64, SAM2 runs the small checkpoint instead of large, and per-frame debug images are off. [configs/realsense/default_high_res.yaml](configs/realsense/default_high_res.yaml) is the slower, higher-fidelity variant — 512×512, `sam2.1_hiera_large`, debug images on.
 
 ### 2. Run
 
@@ -272,9 +292,34 @@ python examples/realsense_tracking/realsense_tracking.py     # 2D overlay only
 | **`n`** | Finish this object and start prompting the **next** object |
 | **`s`** | Start tracking with the collected prompts |
 | **`r`** | Reset all prompt points |
+| **`b`** | Start re-measuring the object box from the fused SDF; press again to fix it |
 | **`q`** | Quit |
 
 Workflow: click 1–3 points on object #1 → press `n` → click points on object #2 → … → press `s`. A live SAM2 mask preview updates as you click, so you can verify the segmentation before committing. Once tracking starts, the window shows the masks, the tracked points, the estimated pose axes/box, and the frame counter.
+
+### Refining the object box from the SDF (`b`)
+
+The box you get at startup is fitted to a **single masked view**, so it only covers the first visible surface and systematically underestimates the object along the viewing direction — the depth axis can come out at essentially zero. Since the pipeline is already fusing a TSDF of each object while it tracks, that volume is a much better thing to measure once you have looked at the object from a few sides.
+
+Press **`b`** during a tracking session to start measuring the box from the fused SDF instead. The overlay reports which state you are in:
+
+| Overlay | Meaning |
+|---|---|
+| `BBox [b]: OFF` | Still the original single-view box — nothing has been measured yet |
+| `BBox [b]: ESTIMATING` | Re-measured on every keyframe, so the box keeps tightening as you move around the object |
+| `BBox [b]: FIXED` | Frozen at the last measurement; further keyframes no longer change it |
+
+So the usual flow is: start tracking, **walk the camera around the object**, press `b` and watch the box settle, then press `b` again to lock it in. Pressing `b` re-measures immediately rather than waiting for the next keyframe, so the box responds to the keypress. A third press resumes estimating.
+
+Measuring a fused TSDF needs some care, because depth noise and mask leakage both end up in the volume. Three filters run before the box is fitted:
+
+- **Observation weight** — a voxel carved by one noisy depth pixel keeps a weight of 1 forever, while real surface is re-observed on every keyframe. This is what removes depth speckle.
+- **Morphological opening** — deletes isolated voxels and one-voxel bridges that survive the weight test.
+- **Connected components** — the filter that matters most. When the mask leaks onto the table or your hand, those fragments fuse as blobs *disconnected* from the object, and a box drawn around the union spans the empty gap between them. Only the largest connected surface is kept.
+
+On a synthetic object of known size fused from 12 views, the refined box recovers the true extent exactly on clean depth and to within one voxel (4 mm) with 3 mm of depth noise, against a single-view baseline that misses the depth axis completely.
+
+Tuning lives under `reconstructor.params` in the config: `bbox_sdf_min_weight`, `bbox_sdf_open_iters` and `bbox_sdf_keep_component_ratio` control the three filters above, `bbox_sdf_min_integrations` sets how much SDF coverage to wait for, and `bbox_sdf_max_rel_extent_change` rejects implausible jumps. `bbox_sdf_refine_enable` chooses which state the session *starts* in — it ships as `false`, so the box stays put until you ask for it. The feature needs `sdf_backend: python_tsdf`; nvblox keeps no dense grid to measure.
 
 ### 3D visualization (Rerun)
 
@@ -282,7 +327,7 @@ Workflow: click 1–3 points on object #1 → press `n` → click points on obje
 
 ```bash
 python examples/realsense_tracking/realsense_tracking_3d.py \
-    --config configs/pipeline/pipeline_test2.yaml \
+    --config configs/realsense/default.yaml \
     --viz-config configs/visualization/pose_3d_demo.yaml
 ```
 
@@ -311,8 +356,8 @@ python examples/realsense_tracking/record_rgbd.py --out ~/data/my_take01 [--seri
 | Symptom | Fix |
 |---|---|
 | Camera not found | Check `rs_serial` in the config and USB 3.0 connection |
-| CUDA OOM | Use `sam2.1_hiera_small.pt`, lower the tracker resolution, or reduce `sampler.params.num_points` |
-| Object flagged "lost" and never recovers | RealSense stereo depth residuals are ~3 mm; keep `register.params.residual_thres` and `map_growth_max_mean_residual` at ~0.006 (already set in `pipeline_test2.yaml`) |
+| CUDA OOM | Drop from the default `sam2.1_hiera_small.pt` to `sam2.1_hiera_tiny.pt`, lower the tracker resolution, or reduce `sampler.params.num_points` |
+| Object flagged "lost" and never recovers | RealSense stereo depth residuals are ~3 mm; keep `register.params.residual_thres` and `map_growth_max_mean_residual` at ~0.006 (already set in `default.yaml`) |
 | Pose rejected during normal handheld motion | Relax `pose_jump_guard_trans_thres` / `pose_jump_guard_rot_deg_thres` |
 | Poor tracking | Better lighting, more textured surfaces, add negative prompt points to exclude background |
 
@@ -367,7 +412,9 @@ The pipeline is a registry of interchangeable modules assembled from one YAML fi
 | `criterion` | `rotation_threshold`, `rotation_threshold_and_min_num`, `rotation_threshold_and_min_num_spread`, `rotation_grid`, `registration_residual`, `uncertainty_ratio`, `uncertainty_number`, `mask_area`, `iteration` |
 | `reconstructor` | `sdf_builder` |
 
-Key pipeline parameters: `max_num_obj`, `frame_reg_mode` (`f2f` / `f2m` / `hybrid`), `estimate_init_pose`, `use_graph_optimization`, and the pose-jump-guard / map-growth gates. [configs/pipeline/pipeline_test2.yaml](configs/pipeline/pipeline_test2.yaml) is the annotated reference config.
+Key pipeline parameters: `max_num_obj`, `frame_reg_mode` (`f2f` / `f2m` / `hybrid`), `estimate_init_pose`, `use_graph_optimization`, and the pose-jump-guard / map-growth gates. [configs/realsense/default.yaml](configs/realsense/default.yaml) is the annotated reference config, tuned for live speed; [configs/realsense/default_high_res.yaml](configs/realsense/default_high_res.yaml) is the higher-fidelity variant.
+
+The object box normally comes from a single masked view, so it only covers the first visible surface. Setting `reconstructor.params.bbox_sdf_refine_enable` re-measures it from the fused TSDF instead, after noise rejection (per-voxel observation weight, morphological opening) and discontinuity removal (connected components, so mask leaks onto the table or hand do not stretch the box). The `bbox_sdf_*` keys in `default.yaml` document each filter.
 
 Adding a new module is three steps: subclass the base class in [point2pose/core/](point2pose/core/), decorate it with `@TRACKER.register_module("my_tracker")` (or the relevant registry), and point the config's `type` at the new key.
 

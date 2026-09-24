@@ -165,16 +165,37 @@ segmenter:
     device: cuda
 
 tracker:
-  type: tapir
+
+  type: tapir_crop
   params:
+    crop_size: auto            # or an int / [w, h] in full-image pixels
+    crop_pad_factor: 1.5       # auto: window side = max(mask extent) * factor
+    crop_min_size: 64
+    crop_recenter_thres_px: 8  # move the window only when the mask centre drifts > this
+    crop_center_mode: bbox     # bbox | centroid
+    crop_debug: false
     resize_height: 512
     resize_width: 512
     # PIPs refinement iterations (upstream tapnet default: 4). Note: this key
     # was ignored before num_pips_iter was wired into TapirTracker, so all
     # earlier runs effectively used 4.
     num_pips_iter: 1
+    # Points per refinement chunk; 0 = all at once. The hardcoded 64 this
+    # replaces forced many sequential passes once the map holds many points.
+    query_chunk_size: 2048
     device: cuda
     checkpoint_path: /home/justin/code/point-to-pose/checkpoints/tapir/causal_bootstapir_checkpoint.pt
+
+  # type: tapir
+  # params:
+  #   resize_height: 512
+  #   resize_width: 512
+  #   # PIPs refinement iterations (upstream tapnet default: 4). Note: this key
+  #   # was ignored before num_pips_iter was wired into TapirTracker, so all
+  #   # earlier runs effectively used 4.
+  #   num_pips_iter: 1
+  #   device: cuda
+  #   checkpoint_path: /home/justin/code/point-to-pose/checkpoints/tapir/causal_bootstapir_checkpoint.pt
  
   
   # type: cotracker3_online

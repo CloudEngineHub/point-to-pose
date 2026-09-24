@@ -13,7 +13,7 @@ surface (i.e. the render -> SuperPoint -> backprojection -> object-frame transfo
 
 Run (in the ``point2pose`` conda env):
     python examples/model_based_tracking/viser_map_viewer.py \
-        --config configs/pipeline/model_tracking.yaml
+        --config configs/realsense/model_tracking.yaml
 
 Then open the printed URL (http://localhost:8080 by default).
 """
@@ -39,7 +39,7 @@ from point2pose.model_tracking.map_builder import MapBuilder, ModelMap
 from point2pose.utils.transform import inverse_SE3
 
 REPO = Path(__file__).resolve().parents[2]
-DEFAULT_CONFIG = REPO / "configs/pipeline/model_tracking.yaml"
+DEFAULT_CONFIG = REPO / "configs/realsense/model_tracking.yaml"
 
 
 def make_intrinsics(H, W, fov_deg=55.0):

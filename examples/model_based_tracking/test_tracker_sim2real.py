@@ -17,7 +17,7 @@ pipeline, so it reflects your real settings.
 Run (point2pose env):
     PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
     python examples/model_based_tracking/test_tracker_sim2real.py \
-        --config configs/pipeline/model_tracking.yaml
+        --config configs/realsense/model_tracking.yaml
 """
 
 import argparse
@@ -44,7 +44,7 @@ from point2pose.data_types.sampler_context import SamplerContext
 from point2pose.utils.transform import inverse_SE3
 
 REPO = Path(__file__).resolve().parents[2]
-DEFAULT_CONFIG = REPO / "configs/pipeline/model_tracking.yaml"
+DEFAULT_CONFIG = REPO / "configs/realsense/model_tracking.yaml"
 
 
 def look_at_obj2cam(cam_pos, up=(0, 0, 1)):
